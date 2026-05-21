@@ -7,3 +7,11 @@ body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, B
 .btn-primary { @apply rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500; }
 .btn-danger { @apply rounded bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500; }
 .field { @apply w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-emerald-500; }
+.md-view { @apply space-y-3 whitespace-normal; }
+.md-view h3 { @apply mt-2 text-base font-semibold text-zinc-50; }
+.md-view p { @apply text-zinc-200; }
+.md-view strong { @apply font-semibold text-zinc-50; }
+.md-view ul { @apply ml-5 list-disc space-y-1; }
+.md-view ol { @apply ml-5 list-decimal space-y-2; }
+.md-view li { @apply pl-1 text-zinc-200; }
+.md-view hr { @apply my-4 border-zinc-800; }

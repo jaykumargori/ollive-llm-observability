@@ -181,7 +181,11 @@ function App() {
               <For each={messages()}>{(m) =>
                 <div class={`rounded border p-3 ${m.role === "user" ? "ml-auto max-w-2xl border-sky-700 bg-sky-950/40" : "mr-auto max-w-3xl border-zinc-800 bg-zinc-900"}`}>
                   <div class="mb-1 text-xs uppercase text-zinc-500">{m.role}{m.pending ? " streaming" : ""}{m.failed ? " failed" : ""}</div>
-                  <div class="whitespace-pre-wrap text-sm leading-6">{m.content}</div>
+                  <div class="text-sm leading-6">
+                    <Show when={m.role === "assistant"} fallback={<div class="whitespace-pre-wrap">{m.content}</div>}>
+                      <Markdown content={m.content} />
+                    </Show>
+                  </div>
                 </div>
               }</For>
             </div>
@@ -254,6 +258,97 @@ function Bar(props: { label: string; value: number; caption: string; danger?: bo
       </div>
     </div>
   );
+}
+
+function Markdown(props: { content: string }) {
+  return <div class="md-view"><For each={parseMarkdown(props.content)}>{(block) => <MarkdownBlock block={block} />}</For></div>;
+}
+
+type MarkdownNode =
+  | { type: "h3"; text: string }
+  | { type: "hr" }
+  | { type: "p"; text: string }
+  | { type: "ul"; items: string[] }
+  | { type: "ol"; items: string[] };
+
+function MarkdownBlock(props: { block: MarkdownNode }) {
+  const block = props.block;
+  if (block.type === "h3") return <h3>{inlineMarkdown(block.text)}</h3>;
+  if (block.type === "hr") return <hr />;
+  if (block.type === "ul") return <ul><For each={block.items}>{(item) => <li>{inlineMarkdown(item)}</li>}</For></ul>;
+  if (block.type === "ol") return <ol><For each={block.items}>{(item) => <li>{inlineMarkdown(item)}</li>}</For></ol>;
+  return <p>{inlineMarkdown(block.text)}</p>;
+}
+
+function parseMarkdown(content: string): MarkdownNode[] {
+  const blocks: MarkdownNode[] = [];
+  const lines = content.replace(/\r\n/g, "\n").split("\n");
+  let paragraph: string[] = [];
+  let list: { type: "ul" | "ol"; items: string[] } | undefined;
+
+  const flushParagraph = () => {
+    if (paragraph.length) {
+      blocks.push({ type: "p", text: paragraph.join(" ") });
+      paragraph = [];
+    }
+  };
+  const flushList = () => {
+    if (list) {
+      blocks.push(list);
+      list = undefined;
+    }
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+    if (line === "---") {
+      flushParagraph();
+      flushList();
+      blocks.push({ type: "hr" });
+      continue;
+    }
+    if (line.startsWith("### ")) {
+      flushParagraph();
+      flushList();
+      blocks.push({ type: "h3", text: line.slice(4) });
+      continue;
+    }
+    const unordered = line.match(/^[-*]\s+(.+)$/);
+    if (unordered) {
+      flushParagraph();
+      if (!list || list.type !== "ul") {
+        flushList();
+        list = { type: "ul", items: [] };
+      }
+      list.items.push(unordered[1]);
+      continue;
+    }
+    const ordered = line.match(/^\d+\.\s+(.+)$/);
+    if (ordered) {
+      flushParagraph();
+      if (!list || list.type !== "ol") {
+        flushList();
+        list = { type: "ol", items: [] };
+      }
+      list.items.push(ordered[1]);
+      continue;
+    }
+    flushList();
+    paragraph.push(line);
+  }
+  flushParagraph();
+  flushList();
+  return blocks;
+}
+
+function inlineMarkdown(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return <>{parts.map((part) => part.startsWith("**") && part.endsWith("**") ? <strong>{part.slice(2, -2)}</strong> : part)}</>;
 }
 
 async function readHTTPError(res: Response) {
