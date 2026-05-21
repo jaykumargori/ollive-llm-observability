@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollive-api
+spec:
+  selector: { app: ollive-api }
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollive-web
+spec:
+  type: LoadBalancer
+  selector: { app: ollive-web }
+  ports:
+    - port: 80
+      targetPort: 80
