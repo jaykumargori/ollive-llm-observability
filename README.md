@@ -121,6 +121,68 @@ kubectl apply -f infra/k8s/service.yaml
 
 The manifests assume Postgres and NATS services exist in-cluster. For a self-hosted demo, run them with your preferred lightweight setup such as k3s, k3d, or kind, then point `DATABASE_URL` and `NATS_URL` in the config map at those services.
 
+### Local Kubernetes Test With kind
+
+Use this flow to prove the app runs on a lightweight self-hosted Kubernetes-style environment.
+
+```bash
+kind create cluster --name ollive
+
+docker build -t ollive-api:latest -f apps/api/Dockerfile .
+docker build -t ollive-ingestion-worker:latest -f services/ingestion-worker/Dockerfile .
+docker build -t ollive-web:latest -f apps/web/Dockerfile .
+
+kind load docker-image ollive-api:latest --name ollive
+kind load docker-image ollive-ingestion-worker:latest --name ollive
+kind load docker-image ollive-web:latest --name ollive
+```
+
+Run Postgres and NATS:
+
+```bash
+kubectl create deployment postgres --image=postgres:16-alpine
+kubectl set env deployment/postgres POSTGRES_USER=ollive POSTGRES_PASSWORD=ollive POSTGRES_DB=ollive
+kubectl expose deployment postgres --port=5432
+
+kubectl create deployment nats --image=nats:2.10-alpine
+kubectl expose deployment nats --port=4222
+```
+
+Initialize the database:
+
+```bash
+kubectl wait --for=condition=available deployment/postgres --timeout=90s
+kubectl cp infra/postgres/001_init.sql $(kubectl get pod -l app=postgres -o jsonpath='{.items[0].metadata.name}'):/tmp/001_init.sql
+kubectl exec deployment/postgres -- psql -U ollive -d ollive -f /tmp/001_init.sql
+```
+
+Deploy Ollive:
+
+```bash
+kubectl create secret generic llm-secrets --from-literal=OPENAI_API_KEY=sk-your-key
+kubectl apply -f infra/k8s/configmap.yaml
+kubectl apply -f infra/k8s/deployment.yaml
+kubectl apply -f infra/k8s/service.yaml
+```
+
+Verify and open:
+
+```bash
+kubectl get pods,svc,deploy
+kubectl logs deployment/ollive-api
+kubectl logs deployment/ollive-ingestion-worker
+
+kubectl port-forward service/ollive-web 5173:80
+```
+
+Open `http://localhost:5173`. If the frontend cannot reach the API from the browser, also run:
+
+```bash
+kubectl port-forward service/ollive-api 8080:8080
+```
+
+For submission proof, capture `kubectl get pods,svc,deploy` plus a short demo showing streaming, cancellation, conversation resume, and dashboard updates.
+
 ## Future Improvements
 
 - Real provider implementations for Claude and Gemini.
