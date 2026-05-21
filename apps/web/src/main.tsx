@@ -197,7 +197,7 @@ function App() {
             <div class="mx-auto mb-2 max-w-4xl text-xs text-zinc-500">{status()}</div>
             <div class="mx-auto flex max-w-4xl gap-2">
               <input class="field" value={input()} onInput={(e) => setInput(e.currentTarget.value)} placeholder="Send an inference request..." />
-              <Show when={streaming()} fallback={<button class="btn-primary" type="button" onClick={() => send()}>Stream</button>}>
+              <Show when={streaming()} fallback={<button class="btn-primary" type="button" onClick={() => send()}>Send</button>}>
                 <button class="btn-danger" type="button" onClick={cancel}>Cancel</button>
               </Show>
               <button class="btn" type="button" onClick={retry}>Retry</button>
