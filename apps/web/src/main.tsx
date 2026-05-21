@@ -56,6 +56,29 @@ function App() {
     }
   }
 
+  async function deleteConversation(id: string) {
+    if (streaming()) return;
+    const res = await fetch(`${API}/api/conversations/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setLastError(await readHTTPError(res));
+      setStatus("Failed");
+      return;
+    }
+    const next = conversations().filter((c) => c.id !== id);
+    setConversations(next);
+    if (active() === id) {
+      messageLoadSeq++;
+      if (next[0]) {
+        await selectConversation(next[0].id);
+      } else {
+        setActive("");
+        setMessages([]);
+        setStatus("Idle");
+      }
+    }
+    await refreshConversations();
+  }
+
   async function refreshMetrics() {
     const res = await fetch(`${API}/api/metrics`);
     if (res.ok) setMetrics(await res.json());
@@ -167,10 +190,13 @@ function App() {
           </select>
           <div class="space-y-2">
             <For each={conversations()}>{(c) =>
-              <button class={`w-full rounded border p-3 text-left text-sm ${active() === c.id ? "border-emerald-500 bg-emerald-950/40" : "border-zinc-800 bg-zinc-950"}`} onClick={() => selectConversation(c.id)}>
-                <div class="truncate font-medium">{c.title}</div>
-                <div class="text-xs text-zinc-400">{c.provider} · {c.model}</div>
-              </button>
+              <div class={`group flex items-start gap-2 rounded border p-3 text-sm ${active() === c.id ? "border-emerald-500 bg-emerald-950/40" : "border-zinc-800 bg-zinc-950"}`}>
+                <button class="min-w-0 flex-1 text-left" onClick={() => selectConversation(c.id)}>
+                  <div class="truncate font-medium">{c.title}</div>
+                  <div class="text-xs text-zinc-400">{c.provider} · {c.model}</div>
+                </button>
+                <button class="rounded px-2 py-1 text-xs text-zinc-500 hover:bg-rose-950 hover:text-rose-200" title="Delete conversation" onClick={() => deleteConversation(c.id)}>Delete</button>
+              </div>
             }</For>
           </div>
         </aside>

@@ -29,6 +29,7 @@ func (h *Handler) Register(app *fiber.App) {
 	app.Get("/healthz", func(c *fiber.Ctx) error { return c.JSON(fiber.Map{"ok": true}) })
 	app.Get("/api/conversations", h.listConversations)
 	app.Post("/api/conversations", h.createConversation)
+	app.Delete("/api/conversations/:id", h.deleteConversation)
 	app.Get("/api/conversations/:id/messages", h.messages)
 	app.Post("/api/conversations/:id/messages", h.streamMessage)
 	app.Get("/api/metrics", h.metrics)
@@ -65,6 +66,13 @@ func (h *Handler) createConversation(c *fiber.Ctx) error {
 		return fiber.NewError(500, err.Error())
 	}
 	return c.JSON(fiber.Map{"id": id})
+}
+
+func (h *Handler) deleteConversation(c *fiber.Ctx) error {
+	if err := h.store.DeleteConversation(c.Context(), c.Params("id")); err != nil {
+		return fiber.NewError(500, err.Error())
+	}
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func (h *Handler) messages(c *fiber.Ctx) error {

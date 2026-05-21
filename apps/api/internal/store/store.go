@@ -51,6 +51,11 @@ func (s *Store) ListConversations(ctx context.Context) ([]Conversation, error) {
 	return out, rows.Err()
 }
 
+func (s *Store) DeleteConversation(ctx context.Context, conversationID string) error {
+	_, err := s.db.Exec(ctx, `delete from conversations where id=$1`, conversationID)
+	return err
+}
+
 func (s *Store) Messages(ctx context.Context, conversationID string) ([]Message, error) {
 	rows, err := s.db.Query(ctx, `select id,role,content,created_at from messages where conversation_id=$1 order by id asc`, conversationID)
 	if err != nil {
