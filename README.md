@@ -2,6 +2,65 @@
 
 Lightweight LLM inference observability platform for streaming AI workloads. Ollive is closer to a tiny Langfuse/OpenTelemetry-style ingestion pipeline than a chatbot product: SSE streams stay on the hot path, telemetry goes through NATS asynchronously, and PostgreSQL stores normalized inference logs.
 
+## v2: observability + evals, without a heavy default
+
+Ollive v2 preserves the original one-command local experience. The API only emits
+OTLP spans when `OTEL_EXPORTER_OTLP_ENDPOINT` is configured, and the worker only
+mirrors redacted telemetry to Kafka when `KAFKA_BROKERS` is configured. Without
+those variables, the hot path remains SSE → NATS → Postgres.
+
+```text
+SSE inference ──► OpenTelemetry span (optional OTLP export)
+       │
+       └────────► NATS ──► Postgres (default)
+                        └► Kafka ──► ClickHouse (optional analytics profile)
+
+golden set + human labels ──► judge score + calibration MAE ──► CI gate
+```
+
+### Golden-set evaluations and regression gate
+
+The checked-in golden set lives at `evals/golden-set.json`. Each case carries a
+human score so judge calibration is always measured rather than assumed. The
+included offline keyword judge makes CI reproducible; production deployments can
+replace it with an LLM judge implementing the same `evals.Judge` interface. Run:
+
+```bash
+go run ./cmd/eval -golden-set evals/golden-set.json -min-score .8 -max-calibration-mae .2
+```
+
+The GitHub Actions workflow runs unit tests plus this command on every push and
+pull request. It fails if either mean quality regresses or judge-vs-human mean
+absolute error exceeds the calibration budget.
+
+### Optional Kafka → ClickHouse analytics
+
+Start the normal stack as before. To add scalable analytics, run the separate
+profile and set `KAFKA_BROKERS=kafka:9092` for `ingestion-worker`. The worker
+continues to persist to Postgres first, then best-effort mirrors its already
+redacted event to Kafka. ClickHouse consumes the topic with a Kafka engine and
+materialized view defined in `infra/analytics/clickhouse/001_inference_events.sql`.
+
+```bash
+cd infra
+docker compose -f docker-compose.yml -f analytics/docker-compose.analytics.yml up --build
+```
+
+### Kubernetes / Helm
+
+The lightweight Helm chart is at `deploy/helm/ollive`. It deploys the API and
+ingestion worker and assumes Postgres/NATS are provided by the cluster. Optional
+analytics is disabled by default:
+
+```bash
+helm upgrade --install ollive deploy/helm/ollive \
+  --set secret.openaiApiKey="$OPENAI_API_KEY" \
+  --set config.otlpEndpoint=otel-collector:4318
+
+# enable Kafka mirroring only when the analytics tier is installed
+helm upgrade --install ollive deploy/helm/ollive --set analytics.enabled=true
+```
+
 ## Quick Start
 
 ```bash

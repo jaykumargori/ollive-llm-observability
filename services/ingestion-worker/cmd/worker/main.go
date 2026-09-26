@@ -6,11 +6,13 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nats-io/nats.go"
+	"github.com/segmentio/kafka-go"
 	"ollive-llm-observability/packages/sdk"
 	"ollive-llm-observability/services/ingestion-worker/internal/redact"
 	"ollive-llm-observability/services/ingestion-worker/internal/store"
@@ -33,6 +35,12 @@ func main() {
 	}
 	defer nc.Close()
 	st := store.New(pool)
+	var kafkaWriter *kafka.Writer
+	if brokers := env("KAFKA_BROKERS", ""); brokers != "" {
+		kafkaWriter = &kafka.Writer{Addr: kafka.TCP(strings.Split(brokers, ",")...), Topic: env("KAFKA_TOPIC", "inference.events"), Balancer: &kafka.LeastBytes{}}
+		defer kafkaWriter.Close()
+		log.Info("kafka analytics bridge enabled", "brokers", brokers)
+	}
 	_, err = nc.QueueSubscribe("inference.events", "ingestion-workers", func(msg *nats.Msg) {
 		var event sdk.InferenceEvent
 		if err := json.Unmarshal(msg.Data, &event); err != nil {
@@ -43,6 +51,12 @@ func main() {
 		event.OutputPreview = redact.Text(event.OutputPreview)
 		event.Error = redact.Text(event.Error)
 		raw, _ := json.Marshal(event)
+		if kafkaWriter != nil {
+			if err := kafkaWriter.WriteMessages(context.Background(), kafka.Message{Key: []byte(event.ID), Value: raw}); err != nil {
+				// Kafka is analytics-only: a failed mirror must never break the durable local path.
+				log.Error("mirror event to kafka", "event_id", event.ID, "err", err)
+			}
+		}
 		if err := st.Save(context.Background(), event, raw); err != nil {
 			log.Error("persist event", "event_id", event.ID, "err", err)
 			return

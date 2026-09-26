@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: {{ .Release.Name }}-config}
+data:
+  DATABASE_URL: {{ .Values.config.databaseUrl | quote }}
+  NATS_URL: {{ .Values.config.natsUrl | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.otlpEndpoint | quote }}
+  {{- if .Values.analytics.enabled }}
+  KAFKA_BROKERS: {{ .Values.analytics.kafkaBrokers | quote }}
+  {{- end }}

@@ -1,0 +1,23 @@
+{{- range $name := list "api" "ingestion-worker" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: {{ $.Release.Name }}-{{ $name }}}
+spec:
+  replicas: {{ if eq $name "api" }}{{ $.Values.api.replicas }}{{ else }}{{ $.Values.worker.replicas }}{{ end }}
+  selector: {matchLabels: {app: {{ $.Release.Name }}-{{ $name }}}}
+  template:
+    metadata: {labels: {app: {{ $.Release.Name }}-{{ $name }}}}
+    spec:
+      containers:
+        - name: {{ $name }}
+          image: "{{ $.Values.image.repository }}-{{ $name }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          envFrom: [{configMapRef: {name: {{ $.Release.Name }}-config}}, {secretRef: {name: {{ $.Release.Name }}-secrets}}]
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata: {name: {{ .Release.Name }}-api}
+spec:
+  selector: {app: {{ .Release.Name }}-api}
+  ports: [{port: {{ .Values.api.service.port }}, targetPort: 8080}]

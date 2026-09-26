@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type LLMProvider interface {
@@ -30,6 +32,9 @@ func New(provider LLMProvider, nc *nats.Conn, subject string) *Client {
 }
 
 func (c *Client) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	ctx, span := otel.Tracer("ollive/inference").Start(ctx, "llm.chat")
+	defer span.End()
+	span.SetAttributes(attribute.String("gen_ai.system", req.Provider), attribute.String("gen_ai.request.model", req.Model))
 	start := time.Now()
 	resp, err := c.provider.Chat(ctx, req)
 	event := baseEvent(req, start)
@@ -49,6 +54,8 @@ func (c *Client) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, erro
 }
 
 func (c *Client) Stream(ctx context.Context, req ChatRequest) (<-chan StreamChunk, error) {
+	ctx, span := otel.Tracer("ollive/inference").Start(ctx, "llm.stream")
+	span.SetAttributes(attribute.String("gen_ai.system", req.Provider), attribute.String("gen_ai.request.model", req.Model))
 	start := time.Now()
 	upstream, err := c.provider.Stream(ctx, req)
 	if err != nil {
@@ -58,10 +65,12 @@ func (c *Client) Stream(ctx context.Context, req ChatRequest) (<-chan StreamChun
 		event.CompletedAt = time.Now()
 		event.LatencyMS = event.CompletedAt.Sub(start).Milliseconds()
 		c.emit(event)
+		span.End()
 		return nil, err
 	}
 	out := make(chan StreamChunk)
 	go func() {
+		defer span.End()
 		defer close(out)
 		var b strings.Builder
 		status := "ok"

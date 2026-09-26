@@ -16,11 +16,18 @@ import (
 	"ollive-llm-observability/apps/api/internal/provider"
 	"ollive-llm-observability/apps/api/internal/store"
 	"ollive-llm-observability/packages/sdk"
+	"ollive-llm-observability/packages/telemetry"
 )
 
 func main() {
 	log := httpapi.Logger()
 	ctx := context.Background()
+	shutdownTelemetry, err := telemetry.Setup(ctx, "ollive-api")
+	if err != nil {
+		log.Error("configure telemetry", "err", err)
+		os.Exit(1)
+	}
+	defer func() { _ = shutdownTelemetry(context.Background()) }()
 	pool, err := db.Connect(ctx)
 	if err != nil {
 		log.Error("connect postgres", "err", err)

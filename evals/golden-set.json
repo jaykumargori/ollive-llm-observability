@@ -1,0 +1,4 @@
+[
+  {"id":"observability-summary","prompt":"Explain Ollive telemetry.","candidate_response":"Ollive creates OpenTelemetry traces and records latency, tokens, provider, and status.","required_terms":["OpenTelemetry","latency","tokens"],"human_score":1},
+  {"id":"safe-pii","prompt":"What is stored?","candidate_response":"Input and output previews are redacted before storage.","required_terms":["redacted","storage"],"human_score":1}
+]

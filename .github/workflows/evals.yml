@@ -1,0 +1,11 @@
+name: eval-regression-gate
+on: [pull_request, push]
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: {go-version: '1.22'}
+      - run: go test ./...
+      - run: go run ./cmd/eval -golden-set evals/golden-set.json -min-score .8 -max-calibration-mae .2

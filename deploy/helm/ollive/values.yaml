@@ -1,0 +1,18 @@
+image:
+  repository: ollive
+  tag: latest
+  pullPolicy: IfNotPresent
+api:
+  replicas: 1
+  service: {port: 8080}
+worker:
+  replicas: 1
+config:
+  databaseUrl: postgres://ollive:ollive@postgres:5432/ollive?sslmode=disable
+  natsUrl: nats://nats:4222
+  otlpEndpoint: ""
+analytics:
+  enabled: false
+  kafkaBrokers: kafka:9092
+secret:
+  openaiApiKey: ""

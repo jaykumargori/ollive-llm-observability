@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ollive
+description: Lightweight LLM observability with optional evaluation and analytics components
+type: application
+version: 0.2.0
+appVersion: "v2"

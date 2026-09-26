@@ -29,6 +29,7 @@ services:
       NATS_URL: nats://nats:4222
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       CORS_ORIGINS: http://localhost:5173,http://localhost:8081
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports: ["8080:8080"]
     depends_on:
       postgres:
