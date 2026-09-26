@@ -22,8 +22,9 @@ golden set + human labels ──► judge score + calibration MAE ──► CI g
 
 The checked-in golden set lives at `evals/golden-set.json`. Each case carries a
 human score so judge calibration is always measured rather than assumed. The
-included offline keyword judge makes CI reproducible; production deployments can
-replace it with an LLM judge implementing the same `evals.Judge` interface. Run:
+included offline keyword judge makes CI reproducible. For a calibrated
+LLM-as-judge run, use the built-in OpenAI judge with `-judge openai`; its scores
+are measured against the same human labels. Run the deterministic gate with:
 
 ```bash
 go run ./cmd/eval -golden-set evals/golden-set.json -min-score .8 -max-calibration-mae .2
